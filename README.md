@@ -114,7 +114,7 @@ Content-Type: application/json
   "tier": "premium"
 }
 ```
-<img width="702" height="6433" alt="image" src="https://github.com/user-attachments/assets/fc7f2732-f49e-4206-b717-efead99cda6e" />
+<img width="1002" height="9433" alt="image" src="https://github.com/user-attachments/assets/fc7f2732-f49e-4206-b717-efead99cda6e" />
 
 
 **Available Values:**
@@ -154,6 +154,8 @@ Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 **No Request Body Required**
 
 ---
+<img width="1011" height="916" alt="image" src="https://github.com/user-attachments/assets/63a27159-dd57-4517-8054-e8771e5518dd" />
+<img width="1000" height="750" alt="image" src="https://github.com/user-attachments/assets/b2270786-dfb4-4d5d-b77f-3d09d346dcf4" />
 
 ## 📊 **REPORTS ENDPOINTS**
 
@@ -177,6 +179,8 @@ Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 - `sortOrder`: `"asc"`, `"desc"`
 
 ---
+<img width="1004" height="957" alt="image" src="https://github.com/user-attachments/assets/8adac87a-7400-4a55-91fb-aa2ee73deff7" />
+
 
 ### 5️⃣ **GET** Single Report (Complex Formatting)
 **URL:** `http://localhost:3000/api/reports/{REPORT_ID}`
@@ -200,6 +204,8 @@ Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 ```
 http://localhost:3000/api/reports/12345678-1234-1234-1234-123456789abc?include=entries&include=metrics&view=summary&page=1&size=5&sort=priority
 ```
+<img width="998" height="891" alt="image" src="https://github.com/user-attachments/assets/9e352e37-49b2-4a82-a461-02e4a9679e4f" />
+
 
 ---
 
@@ -243,6 +249,7 @@ Content-Type: application/json
 - `metadata` (any object)
 
 ---
+<img width="1004" height="941" alt="image" src="https://github.com/user-attachments/assets/dcc12a04-750d-4bac-bb6c-ae60ea623f0a" />
 
 ### 7️⃣ **PUT** Update Existing Report
 **URL:** `http://localhost:3000/api/reports/{REPORT_ID}`
@@ -283,6 +290,7 @@ Content-Type: application/json
 - `version`: **CRITICAL** - Must match current report version for optimistic concurrency control
 
 ---
+<img width="1006" height="924" alt="image" src="https://github.com/user-attachments/assets/c88cc900-ac3e-4379-98a8-f877c6bd3e96" />
 
 ## 📎 **FILE UPLOAD ENDPOINT**
 
@@ -311,6 +319,7 @@ Value: [Select File] (Choose a file from your computer)
 **File Size Limit:** 10MB (10,485,760 bytes)
 
 ---
+<img width="1006" height="932" alt="image" src="https://github.com/user-attachments/assets/b0a929e3-34e0-4dee-a8f6-3e1e6ccf1a70" />
 
 ## 🧪 **TESTING SCENARIOS & EXPECTED RESPONSES**
 

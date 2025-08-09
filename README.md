@@ -114,7 +114,7 @@ Content-Type: application/json
   "tier": "premium"
 }
 ```
-<img width="1002" height="9433" alt="image" src="https://github.com/user-attachments/assets/fc7f2732-f49e-4206-b717-efead99cda6e" />
+<img width="702" height="6433" alt="image" src="https://github.com/user-attachments/assets/fc7f2732-f49e-4206-b717-efead99cda6e" />
 
 
 **Available Values:**
@@ -138,6 +138,8 @@ Content-Type: application/json
   "password": "SecurePass123!@#"
 }
 ```
+<img width="1000" height="940" alt="image" src="https://github.com/user-attachments/assets/379263d1-e23f-4a28-978a-bfcd551a00b3" />
+
 
 ---
 

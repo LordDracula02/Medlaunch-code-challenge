@@ -499,21 +499,25 @@ export class ReportsController {
         userAgent: req.get('User-Agent') || '',
       });
 
-      // Trigger async side effect (notification, cache invalidation, etc.)
-      // In a real application, this would be handled by a job queue
+      // Trigger async side effect with retry logic, circuit breaker, and dead letter queue
+      // Enhanced with production-grade resilience patterns
+      const {executeAsyncSideEffect} = require('../utils/retry');
+      const correlationId = req.headers['x-correlation-id'] as string || (req as any).id || 'async-side-effect';
+      
       setImmediate(async () => {
-        try {
-          // Simulate async side effect
-          const correlationId = req.headers['x-correlation-id'] as string || 'async-side-effect';
-          await ReportsController.triggerAsyncSideEffect(report, user, correlationId);
-        } catch (error) {
-          // Log error but don't fail the request
-          logRequestError(req, 'Async side effect failed', error as Error);
-        }
+        await executeAsyncSideEffect(
+          () => ReportsController.triggerAsyncSideEffect(report, user, correlationId),
+          'report_creation_side_effect',
+          { reportId: report.id, userId: user.id },
+          correlationId,
+          { maxRetries: 3, backoffMs: 1000, jitter: true }
+        );
       });
 
       logRequest(req, 'Report created successfully', {reportId: report.id, createdBy: user.id});
 
+      // Set Location header for HTTP 201 compliance
+      res.setHeader('Location', `/api/reports/${report.id}`);
       res.status(201).json({
         success: true,
         message: 'Report created successfully',
@@ -628,6 +632,8 @@ export class ReportsController {
         uploadedBy: user.id,
       });
 
+      // Set Location header for HTTP 201 compliance
+      res.setHeader('Location', `/api/reports/${id}/attachments/${attachment.id}`);
       res.status(201).json({
         success: true,
         message: 'Attachment uploaded successfully',
@@ -667,6 +673,263 @@ export class ReportsController {
         res.status(500).json({
           success: false,
           message: 'Failed to upload attachment',
+          errors: [{field: 'general', message: 'Internal server error'}],
+        });
+      }
+    }
+  }
+
+  /**
+   * GET /api/reports/:id/attachments/:attachmentId/download
+   * Download file attachment
+   */
+  static async downloadAttachment (req: Request, res: Response): Promise<void> {
+    try {
+      // Validate parameters
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new ValidationError(
+          errors.array().map(err => ({field: (err as any).path || 'unknown', message: err.msg})),
+        );
+      }
+
+      const {id: reportId, attachmentId} = req.params;
+      const user = req.user!;
+
+      // Get report to verify access
+      const report = await dataStore.getReport(reportId!);
+      if (!report) {
+        throw new NotFoundError('Report');
+      }
+
+      // Check business rules for read access to report
+      const businessContext: BusinessRuleContext = {
+        user,
+        report,
+        action: 'read',
+      };
+
+      const businessRuleResult = BusinessRulesService.evaluateAllRules(businessContext);
+      if (!businessRuleResult.allowed) {
+        throw new AuthorizationError(businessRuleResult.reason || 'Access denied');
+      }
+
+      // Get attachment
+      const attachment = await dataStore.getAttachment(attachmentId!);
+      if (!attachment || !attachment.isActive) {
+        throw new NotFoundError('Attachment');
+      }
+
+      // Verify attachment belongs to this report
+      if (attachment.reportId !== reportId) {
+        throw new NotFoundError('Attachment');
+      }
+
+      // Log download activity
+      await dataStore.addAuditLog({
+        userId: user.id,
+        action: 'download_attachment',
+        resourceType: 'attachment',
+        resourceId: attachmentId!,
+        ipAddress: req.ip || '',
+        userAgent: req.get('User-Agent') || '',
+      });
+
+      logRequest(req, 'Attachment download requested', {
+        attachmentId: attachment.id,
+        reportId,
+        downloadedBy: user.id,
+      });
+
+      // Set appropriate headers for file download
+      res.setHeader('Content-Type', attachment.mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.originalName}"`);
+      res.setHeader('Content-Length', attachment.size.toString());
+
+      // Stream the file
+      const fs = require('fs');
+      const path = require('path');
+      
+      try {
+        const filePath = path.resolve(attachment.storagePath);
+        
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+          throw new NotFoundError('File not found on disk');
+        }
+
+        // Create read stream and pipe to response
+        const fileStream = fs.createReadStream(filePath);
+        fileStream.pipe(res);
+
+        fileStream.on('error', (error: Error) => {
+          logRequestError(req, 'File stream error', error);
+          if (!res.headersSent) {
+            res.status(500).json({
+              success: false,
+              message: 'Error streaming file',
+              errors: [{field: 'file', message: 'Unable to stream file'}],
+            });
+          }
+        });
+
+      } catch (fileError) {
+        throw new NotFoundError('File not accessible');
+      }
+
+    } catch (error) {
+      logRequestError(req, 'Failed to download attachment', error as Error);
+
+      if (error instanceof ValidationError) {
+        res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: error.errors,
+        });
+      } else if (error instanceof NotFoundError) {
+        res.status(404).json({
+          success: false,
+          message: error.message,
+          errors: [{field: 'attachment', message: error.message}],
+        });
+      } else if (error instanceof AuthorizationError) {
+        res.status(403).json({
+          success: false,
+          message: error.message,
+          errors: [{field: 'authorization', message: error.message}],
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to download attachment',
+          errors: [{field: 'general', message: 'Internal server error'}],
+        });
+      }
+    }
+  }
+
+  /**
+   * POST /api/reports/:id/attachments/:attachmentId/signed-url
+   * Generate signed URL for file download
+   */
+  static async generateSignedUrl (req: Request, res: Response): Promise<void> {
+    try {
+      // Validate parameters
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new ValidationError(
+          errors.array().map(err => ({field: (err as any).path || 'unknown', message: err.msg})),
+        );
+      }
+
+      const {id: reportId, attachmentId} = req.params;
+      const user = req.user!;
+
+      // Get report to verify access
+      const report = await dataStore.getReport(reportId!);
+      if (!report) {
+        throw new NotFoundError('Report');
+      }
+
+      // Check business rules for read access
+      const businessContext: BusinessRuleContext = {
+        user,
+        report,
+        action: 'read',
+      };
+
+      const businessRuleResult = BusinessRulesService.evaluateAllRules(businessContext);
+      if (!businessRuleResult.allowed) {
+        throw new AuthorizationError(businessRuleResult.reason || 'Access denied');
+      }
+
+      // Get attachment
+      const attachment = await dataStore.getAttachment(attachmentId!);
+      if (!attachment || !attachment.isActive) {
+        throw new NotFoundError('Attachment');
+      }
+
+      // Verify attachment belongs to this report
+      if (attachment.reportId !== reportId) {
+        throw new NotFoundError('Attachment');
+      }
+
+      // Generate signed URL (simplified implementation)
+      const jwt = require('jsonwebtoken');
+      const {config} = require('../config');
+      
+      const expiresAt = new Date(Date.now() + config.fileUpload.signedUrlExpiry * 1000);
+      
+      const signedToken = jwt.sign(
+        {
+          attachmentId: attachment.id,
+          reportId,
+          userId: user.id,
+          exp: Math.floor(expiresAt.getTime() / 1000),
+        },
+        config.jwt.secret
+      );
+
+      const signedUrl = `${req.protocol}://${req.get('host')}/api/reports/${reportId}/attachments/${attachmentId}/download?token=${signedToken}`;
+
+      // Update attachment with signed URL info
+      await dataStore.updateAttachment(attachmentId!, {
+        downloadUrl: signedUrl,
+        expiresAt,
+      });
+
+      // Log signed URL generation
+      await dataStore.addAuditLog({
+        userId: user.id,
+        action: 'generate_signed_url',
+        resourceType: 'attachment',
+        resourceId: attachmentId!,
+        ipAddress: req.ip || '',
+        userAgent: req.get('User-Agent') || '',
+      });
+
+      logRequest(req, 'Signed URL generated', {
+        attachmentId: attachment.id,
+        reportId,
+        requestedBy: user.id,
+        expiresAt,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Signed URL generated successfully',
+        data: {
+          signedUrl,
+          expiresAt: expiresAt.toISOString(),
+          validFor: `${config.fileUpload.signedUrlExpiry} seconds`,
+        },
+      });
+
+    } catch (error) {
+      logRequestError(req, 'Failed to generate signed URL', error as Error);
+
+      if (error instanceof ValidationError) {
+        res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: error.errors,
+        });
+      } else if (error instanceof NotFoundError) {
+        res.status(404).json({
+          success: false,
+          message: error.message,
+          errors: [{field: 'attachment', message: error.message}],
+        });
+      } else if (error instanceof AuthorizationError) {
+        res.status(403).json({
+          success: false,
+          message: error.message,
+          errors: [{field: 'authorization', message: error.message}],
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to generate signed URL',
           errors: [{field: 'general', message: 'Internal server error'}],
         });
       }

@@ -329,6 +329,18 @@ class InMemoryStore {
       .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
   }
 
+  async updateAttachment (id: string, updates: Partial<Attachment>): Promise<Attachment> {
+    const attachment = this.attachments.get(id);
+    if (!attachment || !attachment.isActive) {
+      throw new NotFoundError('Attachment');
+    }
+
+    const updatedAttachment: Attachment = { ...attachment, ...updates };
+    this.attachments.set(id, updatedAttachment);
+    logInfo('Attachment updated', { attachmentId: id });
+    return updatedAttachment;
+  }
+
   async deleteAttachment (id: string): Promise<void> {
     const attachment = this.attachments.get(id);
     if (!attachment) {

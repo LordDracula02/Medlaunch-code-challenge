@@ -321,6 +321,71 @@ Value: [Select File] (Choose a file from your computer)
 ---
 <img width="1006" height="932" alt="image" src="https://github.com/user-attachments/assets/b0a929e3-34e0-4dee-a8f6-3e1e6ccf1a70" />
 
+## 📥 **FILE DOWNLOAD ENDPOINTS**
+
+### 9️⃣ **GET** Direct File Download
+**URL:** `http://localhost:3000/api/reports/{REPORT_ID}/attachments/{ATTACHMENT_ID}/download`
+
+**Headers:**
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+```
+
+**No Request Body Required**
+
+**Expected Response:**
+- **Status:** `200 OK`
+- **Content-Type:** File's MIME type (e.g., `application/pdf`, `text/plain`)
+- **Content-Disposition:** `attachment; filename="original-filename.ext"`
+- **Body:** Binary file content (file will download automatically in Postman)
+
+**Example:**
+```
+GET http://localhost:3000/api/reports/12345678-1234-1234-1234-123456789abc/attachments/87654321-4321-4321-4321-210987654321/download
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+---
+
+### 🔗 **POST** Generate Signed URL
+**URL:** `http://localhost:3000/api/reports/{REPORT_ID}/attachments/{ATTACHMENT_ID}/signed-url`
+
+**Headers:**
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+```
+
+**No Request Body Required**
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "message": "Signed URL generated successfully",
+  "data": {
+    "signedUrl": "http://localhost:3000/api/reports/12345678-1234-1234-1234-123456789abc/attachments/87654321-4321-4321-4321-210987654321/download?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresAt": "2024-01-20T11:30:00.000Z",
+    "validFor": "3600 seconds"
+  }
+}
+```
+
+**Example:**
+```
+POST http://localhost:3000/api/reports/12345678-1234-1234-1234-123456789abc/attachments/87654321-4321-4321-4321-210987654321/signed-url
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+**Usage:**
+1. Generate signed URL using this endpoint
+2. Copy the `signedUrl` from response
+3. Open URL in browser or Postman (no authentication required)
+4. File will download automatically
+
+---
+
 ## 🧪 **TESTING SCENARIOS & EXPECTED RESPONSES**
 
 ### ✅ **Success Response Examples**
@@ -444,6 +509,34 @@ Value: [Select File] (Choose a file from your computer)
 }
 ```
 
+**404 Not Found (File Download):**
+```json
+{
+  "success": false,
+  "message": "Attachment",
+  "errors": [
+    {
+      "field": "attachment",
+      "message": "Attachment"
+    }
+  ]
+}
+```
+
+**403 Forbidden (File Access Denied):**
+```json
+{
+  "success": false,
+  "message": "Access denied",
+  "errors": [
+    {
+      "field": "authorization",
+      "message": "Access denied"
+    }
+  ]
+}
+```
+
 ---
 
 ## 🚀 **STEP-BY-STEP TESTING WORKFLOW**
@@ -463,8 +556,14 @@ Value: [Select File] (Choose a file from your computer)
 ### **3. 📎 Test File Upload**
 1. **Upload attachment** (endpoint #8) - Use report ID from reports flow
 2. **Get report with attachments** - Use `?include=attachments` parameter
+3. **Save the attachment ID** from the upload response for download testing
 
-### **4. 🧪 Test Error Scenarios**
+### **4. 📥 Test File Download**
+1. **Download file directly** (endpoint #9) - Use report ID and attachment ID
+2. **Generate signed URL** (endpoint #10) - Create shareable download link
+3. **Test signed URL** - Open the generated URL in browser (no auth required)
+
+### **5. 🧪 Test Error Scenarios**
 1. Try requests **without Authorization header** - Should get 401
 2. Try **invalid data** - Should get 422 validation errors
 3. Try **wrong version number** in PUT - Should get 409 conflict
@@ -477,6 +576,8 @@ Value: [Select File] (Choose a file from your computer)
 Set up these variables in Postman:
 - `base_url`: `http://localhost:3000`
 - `access_token`: `{{auth_token}}` (auto-populate from login response)
+- `report_id`: `{{report_id}}` (from report creation)
+- `attachment_id`: `{{attachment_id}}` (from file upload)
 
 ### **📋 Collection Structure**
 Organize your Postman collection like this:
@@ -491,8 +592,11 @@ Organize your Postman collection like this:
 │   ├── Get Report
 │   ├── Create Report
 │   └── Update Report
-└── 📎 File Upload
-    └── Upload Attachment
+├── 📎 File Upload
+│   └── Upload Attachment
+└── 📥 File Download
+    ├── Download File (Direct)
+    └── Generate Signed URL
 ```
 
 ### **🎯 Key Testing Points**
@@ -501,6 +605,8 @@ Organize your Postman collection like this:
 3. **Version field is critical** for PUT requests (optimistic locking)
 4. **File size limit** is 10MB for uploads
 5. **Business rules** affect what operations are allowed
+6. **File downloads require report access** - user must have read access to the report
+7. **Signed URLs expire** after 1 hour (3600 seconds) by default
 
 ---
 

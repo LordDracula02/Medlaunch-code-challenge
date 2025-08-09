@@ -269,3 +269,8 @@ export class AuthService {
     return user;
   }
 }
+
+// Export utility function for tests
+export const generateAuthToken = (user: User): string => {
+  return AuthService.generateToken(user);
+};

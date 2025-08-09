@@ -3,6 +3,7 @@ import {body, param, query} from 'express-validator';
 import {ReportsController} from '../controllers/reports';
 import {ReportStatus, ReportPriority, UserRole} from '../types';
 import {requireMinRole} from '../middleware/auth';
+import {idempotencyMiddleware} from '../middleware/idempotency';
 
 const router = Router();
 
@@ -46,6 +47,7 @@ router.get('/:id', [
  * Update report with idempotency and optimistic concurrency control
  */
 router.put('/:id', [
+  idempotencyMiddleware, // Add idempotency support for PUT operations
   requireMinRole(UserRole.READER), // Allow readers to reach business rule validation for specific error messages
   param('id').isUUID().withMessage('Invalid report ID'),
   body('title').optional().trim().isLength({min: 1, max: 200}).withMessage('Title must be between 1 and 200 characters'),

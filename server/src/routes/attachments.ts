@@ -55,4 +55,24 @@ router.post('/:id/attachment', [
   upload.single('file'),
 ], ReportsController.uploadAttachment);
 
+/**
+ * GET /api/reports/:id/attachments/:attachmentId/download
+ * Download file attachment
+ */
+router.get('/:id/attachments/:attachmentId/download', [
+  requireMinRole(UserRole.READER),
+  param('id').isUUID().withMessage('Invalid report ID'),
+  param('attachmentId').isUUID().withMessage('Invalid attachment ID'),
+], ReportsController.downloadAttachment);
+
+/**
+ * POST /api/reports/:id/attachments/:attachmentId/signed-url
+ * Generate signed URL for file download
+ */
+router.post('/:id/attachments/:attachmentId/signed-url', [
+  requireMinRole(UserRole.READER),
+  param('id').isUUID().withMessage('Invalid report ID'),
+  param('attachmentId').isUUID().withMessage('Invalid attachment ID'),
+], ReportsController.generateSignedUrl);
+
 export default router;

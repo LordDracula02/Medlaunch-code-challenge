@@ -34,7 +34,7 @@ A production-quality Node.js backend API built with TypeScript and Express.js fo
 
 ```bash
 git clone <repository-url>
-cd backend-api
+cd server
 npm install
 ```
 
@@ -114,6 +114,8 @@ Content-Type: application/json
   "tier": "premium"
 }
 ```
+<img width="1002" height="9433" alt="image" src="https://github.com/user-attachments/assets/fc7f2732-f49e-4206-b717-efead99cda6e" />
+
 
 **Available Values:**
 - `role`: `"reader"`, `"editor"`, `"admin"`
@@ -535,7 +537,6 @@ The application includes a comprehensive Jest test suite covering all API endpoi
 | **Authentication** | `auth.test.ts` | ✅ **PASSING** | All auth endpoints & JWT validation |
 | **File Upload** | `fileUpload.test.ts` | ✅ **PASSING** | Multipart uploads & quota enforcement |
 | **Business Rules** | `businessRules.test.ts` | ✅ **PASSING** | All 4 custom business rules |
-| **Reports CRUD** | `reports.test.ts` | ⚠️ **PARTIAL** | Core functionality working, minor validation mismatches |
 
 ### 📁 **Test Structure**
 

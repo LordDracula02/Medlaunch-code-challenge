@@ -330,7 +330,6 @@ Value: [Select File] (Choose a file from your computer)
 ```
 Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 ```
-
 **No Request Body Required**
 
 **Expected Response:**
@@ -344,6 +343,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
 GET http://localhost:3000/api/reports/12345678-1234-1234-1234-123456789abc/attachments/87654321-4321-4321-4321-210987654321/download
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+<img width="1077" height="265" alt="image" src="https://github.com/user-attachments/assets/f650f34b-be76-487c-b7b8-69489f20abd6" />
 
 ---
 
@@ -377,6 +377,7 @@ POST http://localhost:3000/api/reports/12345678-1234-1234-1234-123456789abc/atta
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
+<img width="1078" height="592" alt="image" src="https://github.com/user-attachments/assets/89d845fb-d47e-4dad-a291-dba1f99de0e4" />
 
 **Usage:**
 1. Generate signed URL using this endpoint

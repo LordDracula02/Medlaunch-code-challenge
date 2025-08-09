@@ -4,6 +4,7 @@ import {AuthService} from '../services/auth';
 import {dataStore} from '../services/dataStore';
 import {UserRole, UserTier, AuthenticationError, ValidationError} from '../types';
 import {logRequest, logRequestError} from '../utils/logger';
+import {authenticateToken} from '../middleware/auth';
 
 const router = Router();
 
@@ -92,7 +93,7 @@ router.post('/register', [
     logRequestError(req, 'User registration failed', error as Error);
 
     if (error instanceof ValidationError) {
-      return res.status(400).json({
+      return res.status(422).json({
         success: false,
         message: 'Validation failed',
         errors: error.errors,
@@ -177,7 +178,7 @@ router.post('/login', [
     logRequestError(req, 'User login failed', error as Error);
 
     if (error instanceof ValidationError) {
-      return res.status(400).json({
+      return res.status(422).json({
         success: false,
         message: 'Validation failed',
         errors: error.errors,
@@ -243,7 +244,7 @@ router.post('/refresh', [
     logRequestError(req, 'Token refresh failed', error as Error);
 
     if (error instanceof ValidationError) {
-      return res.status(400).json({
+      return res.status(422).json({
         success: false,
         message: 'Validation failed',
         errors: error.errors,
@@ -285,7 +286,7 @@ router.post('/logout', (req: Request, res: Response) => {
  * GET /api/auth/me
  * Get current user information
  */
-router.get('/me', (req: Request, res: Response) => {
+router.get('/me', authenticateToken, (req: Request, res: Response) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,

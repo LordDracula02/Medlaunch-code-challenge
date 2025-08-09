@@ -31,12 +31,7 @@ const fileFilter = (_req: any, file: any, cb: multer.FileFilterCallback) => {
     return;
   }
 
-  // Check file size
-  if (file.size > config.fileUpload.maxSize) {
-    cb(new Error(`File size ${file.size} exceeds maximum allowed size of ${config.fileUpload.maxSize}`));
-    return;
-  }
-
+  // Note: file.size is not available in fileFilter, size limits are handled by multer limits
   cb(null, true);
 };
 

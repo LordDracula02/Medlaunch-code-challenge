@@ -18,7 +18,7 @@ import {
 import {dataStore} from '../services/dataStore';
 import {BusinessRulesService} from '../services/businessRules';
 
-import {logRequest, logRequestError} from '../utils/logger';
+import {logInfo, logRequest, logRequestError} from '../utils/logger';
 
 export class ReportsController {
 
@@ -26,7 +26,7 @@ export class ReportsController {
    * GET /api/reports
    * List all reports with filtering, pagination, and sorting
    */
-  static async listReports (req: Request, res: Response): Promise<void> {
+  static async listReports (req: Request, res: Response): Promise<Response> {
     try {
       // Validate parameters
       const errors = validationResult(req);
@@ -82,7 +82,7 @@ export class ReportsController {
               bValue = b.title.toLowerCase();
               break;
             case 'priority':
-              const priorityOrder = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
+              const priorityOrder = { low: 1, medium: 2, high: 3, critical: 4 };
               aValue = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
               bValue = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
               break;
@@ -108,6 +108,7 @@ export class ReportsController {
         
         pagination = {
           page,
+          size: limit,
           limit,
           total,
           totalPages,
@@ -278,6 +279,7 @@ export class ReportsController {
         pagination = {
           page,
           size,
+          limit: size,
           total,
           totalPages,
           hasNext: page < totalPages,
@@ -398,6 +400,8 @@ export class ReportsController {
             priority: updatedReport.priority,
             version: updatedReport.version,
             updatedAt: updatedReport.updatedAt,
+            collaborators: updatedReport.collaborators,
+            concurrentEditors: updatedReport.concurrentEditors,
           },
         },
       });
@@ -500,7 +504,8 @@ export class ReportsController {
       setImmediate(async () => {
         try {
           // Simulate async side effect
-          await this.triggerAsyncSideEffect(report, user);
+          const correlationId = req.headers['x-correlation-id'] as string || 'async-side-effect';
+          await ReportsController.triggerAsyncSideEffect(report, user, correlationId);
         } catch (error) {
           // Log error but don't fail the request
           logRequestError(req, 'Async side effect failed', error as Error);
@@ -671,12 +676,13 @@ export class ReportsController {
   /**
    * Simulate async side effect for report creation
    */
-  private static async triggerAsyncSideEffect (report: Report, user: any): Promise<void> {
+  private static async triggerAsyncSideEffect (report: Report, user: any, correlationId?: string): Promise<void> {
     // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Log the side effect
-    logRequest({} as Request, 'Async side effect triggered', {
+    // Log the side effect using direct logger instead of logRequest
+    logInfo('Async side effect triggered', {
+      correlationId: correlationId || 'async-side-effect',
       reportId: report.id,
       userId: user.id,
       effect: 'notification_sent',

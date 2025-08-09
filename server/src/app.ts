@@ -7,7 +7,7 @@ import {v4 as uuidv4} from 'uuid';
 
 import {config, validateConfig} from './config';
 import {requestLogger, errorLogger, logger} from './utils/logger';
-import {AppError} from './types';
+import {AppError, ValidationError} from './types';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -43,18 +43,20 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.maxRequests,
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
+// Rate limiting (disabled in test environment)
+if (process.env['NODE_ENV'] !== 'test') {
+  const limiter = rateLimit({
+    windowMs: config.rateLimit.windowMs,
+    max: config.rateLimit.maxRequests,
+    message: {
+      success: false,
+      message: 'Too many requests from this IP, please try again later.',
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(limiter);
+}
 
 // Compression middleware
 app.use(compression());
@@ -108,6 +110,8 @@ app.use((error: Error, req: express.Request, res: express.Response, _next: expre
     url: req.url,
     method: req.method,
     correlationId: (req as any).id,
+    errorType: error.constructor.name,
+    isValidationError: error instanceof ValidationError,
   });
 
   if (error instanceof AppError) {
@@ -115,6 +119,40 @@ app.use((error: Error, req: express.Request, res: express.Response, _next: expre
       success: false,
       message: error.message,
       errors: [{field: 'general', message: error.message}],
+    });
+  }
+
+  if (error instanceof ValidationError) {
+    return res.status(422).json({
+      success: false,
+      message: 'Validation failed',
+      errors: error.errors,
+    });
+  }
+
+  // Handle multer errors (file upload errors)
+  if ((error as any).code === 'LIMIT_FILE_SIZE') {
+    return res.status(422).json({
+      success: false,
+      message: 'File size exceeds maximum allowed size',
+      errors: [{field: 'file', message: `File size exceeds maximum allowed size of ${(error as any).limit} bytes`}],
+    });
+  }
+
+  if ((error as any).code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(422).json({
+      success: false,
+      message: 'Unexpected file field',
+      errors: [{field: 'file', message: 'Only single file upload is allowed'}],
+    });
+  }
+
+  // Handle other multer/file upload errors
+  if (error.message && error.message.includes('File type') && error.message.includes('not allowed')) {
+    return res.status(422).json({
+      success: false,
+      message: 'Unsupported file type',
+      errors: [{field: 'file', message: error.message}],
     });
   }
 

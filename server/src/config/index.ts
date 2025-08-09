@@ -18,7 +18,7 @@ export const config = {
   },
 
   fileUpload: {
-    maxSize: parseInt(process.env['MAX_FILE_SIZE'] || '10485760', 10), // 10MB
+    maxSize: parseInt(process.env['MAX_FILE_SIZE'] || '524288000', 10), // 500MB (matches premium quota)
     allowedTypes: process.env['ALLOWED_FILE_TYPES']?.split(',') || [
       'image/jpeg',
       'image/png',

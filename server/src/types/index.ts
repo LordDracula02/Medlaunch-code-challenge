@@ -132,6 +132,7 @@ export interface ValidationError {
 export interface PaginationInfo {
   page: number;
   size: number;
+  limit: number;
   total: number;
   totalPages: number;
   hasNext: boolean;
@@ -218,31 +219,36 @@ export class AppError extends Error {
 
 export class ValidationError extends AppError {
   constructor (public errors: Array<{ field: string; message: string }>) {
-    super(400, 'Validation failed');
+    super(422, 'Validation failed');
     this.errors = errors;
+    Object.setPrototypeOf(this, ValidationError.prototype);
   }
 }
 
 export class AuthenticationError extends AppError {
   constructor (message = 'Authentication required') {
     super(401, message);
+    Object.setPrototypeOf(this, AuthenticationError.prototype);
   }
 }
 
 export class AuthorizationError extends AppError {
   constructor (message = 'Insufficient permissions') {
     super(403, message);
+    Object.setPrototypeOf(this, AuthorizationError.prototype);
   }
 }
 
 export class NotFoundError extends AppError {
   constructor (resource = 'Resource') {
     super(404, `${resource} not found`);
+    Object.setPrototypeOf(this, NotFoundError.prototype);
   }
 }
 
 export class ConflictError extends AppError {
   constructor (message = 'Resource conflict') {
     super(409, message);
+    Object.setPrototypeOf(this, ConflictError.prototype);
   }
 }

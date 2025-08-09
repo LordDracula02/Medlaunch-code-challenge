@@ -12,6 +12,8 @@ import {logBusinessRule} from '../utils/logger';
 
 export class BusinessRulesService {
 
+
+
   /**
    * Rule 1: Report Lifecycle Management
    * Reports in 'ARCHIVED' status cannot be edited by anyone except ADMIN users
@@ -163,6 +165,33 @@ export class BusinessRulesService {
   }
 
   /**
+   * General Edit Permissions
+   * Only EDITORs and ADMINs can edit reports (checked last after specific rules)
+   */
+  static checkGeneralEditPermissions (context: BusinessRuleContext): BusinessRuleResult {
+    const {user, action} = context;
+
+    if (action === 'update') {
+      const allowed = user.role === UserRole.EDITOR || user.role === UserRole.ADMIN;
+
+      if (!allowed) {
+        logBusinessRule('General Edit Permissions', context, {allowed});
+        
+        return {
+          allowed: false,
+          reason: 'Insufficient permissions. Minimum role required: editor',
+          constraints: {
+            requiredRole: UserRole.EDITOR,
+            userRole: user.role,
+          },
+        };
+      }
+    }
+
+    return {allowed: true};
+  }
+
+  /**
    * Apply all business rules for a given context
    */
   static evaluateAllRules (context: BusinessRuleContext): BusinessRuleResult {
@@ -171,6 +200,7 @@ export class BusinessRulesService {
       this.checkAttachmentQuota,
       this.checkReportCollaboration,
       this.checkDataRetentionPolicy,
+      this.checkGeneralEditPermissions, // Check general permissions last
     ];
 
     for (const rule of rules) {

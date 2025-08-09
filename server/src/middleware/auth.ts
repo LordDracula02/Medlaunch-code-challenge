@@ -1,5 +1,6 @@
 import {Request, Response, NextFunction} from 'express';
 import {AuthService} from '../services/auth';
+import {dataStore} from '../services/dataStore';
 import {UserRole, AuthenticationError, AuthorizationError, User} from '../types';
 import {logRequest, logRequestError} from '../utils/logger';
 
@@ -32,19 +33,11 @@ export const authenticateToken = async (
     // Verify token
     const payload = AuthService.verifyToken(token);
 
-    // In a real application, you would fetch the user from database
-    // For this demo, we'll create a mock user object
-    const user: User = {
-      id: payload.userId,
-      email: payload.email,
-      name: payload.email.split('@')[0] || 'User', // Mock name from email
-      role: payload.role,
-      tier: payload.tier,
-      password: '', // Not needed for authenticated requests
-      storageUsed: 0, // Would be fetched from database
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    // Fetch the real user from database
+    const user = await dataStore.getUser(payload.userId);
+    if (!user) {
+      throw new AuthenticationError('User not found');
+    }
 
     req.user = user;
     req.token = token;

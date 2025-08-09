@@ -11,6 +11,7 @@ const router = Router();
  * List all reports with filtering, pagination, and sorting
  */
 router.get('/', [
+  requireMinRole(UserRole.READER),
   query('status').optional().isIn(Object.values(ReportStatus)).withMessage('Invalid status'),
   query('priority').optional().isIn(Object.values(ReportPriority)).withMessage('Invalid priority'),
   query('createdBy').optional().isUUID().withMessage('Invalid user ID'),
@@ -26,8 +27,14 @@ router.get('/', [
  * Get report with complex formatting and optional views
  */
 router.get('/:id', [
+  requireMinRole(UserRole.READER),
   param('id').isUUID().withMessage('Invalid report ID'),
-  query('include').optional().isArray().withMessage('Include must be an array'),
+  query('include').optional().custom((value) => {
+    // Allow both single string and array of strings
+    if (typeof value === 'string') return true;
+    if (Array.isArray(value)) return value.every(item => typeof item === 'string');
+    return false;
+  }).withMessage('Include must be a string or array of strings'),
   query('view').optional().isIn(['default', 'summary']).withMessage('Invalid view mode'),
   query('page').optional().isInt({min: 1}).withMessage('Page must be a positive integer'),
   query('size').optional().isInt({min: 1, max: 100}).withMessage('Size must be between 1 and 100'),
@@ -39,7 +46,7 @@ router.get('/:id', [
  * Update report with idempotency and optimistic concurrency control
  */
 router.put('/:id', [
-  requireMinRole(UserRole.EDITOR),
+  requireMinRole(UserRole.READER), // Allow readers to reach business rule validation for specific error messages
   param('id').isUUID().withMessage('Invalid report ID'),
   body('title').optional().trim().isLength({min: 1, max: 200}).withMessage('Title must be between 1 and 200 characters'),
   body('description').optional().trim().isLength({max: 2000}).withMessage('Description must be less than 2000 characters'),
